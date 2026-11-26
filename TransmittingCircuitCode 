@@ -1,0 +1,107 @@
+
+
+#include <WiFi.h>
+#include <esp_now.h>
+
+
+// Ultrasonic sensor pins
+#define TRIG_PIN 12
+#define ECHO_PIN 13
+
+
+// Replace with the MAC address of ESP32 Receiving
+uint8_t receiverAddress[] = {
+ º
+};
+
+
+const float threshold = 20.0; // Distance in cm
+
+
+void setup() {
+ Serial.begin(115200);
+
+
+ pinMode(TRIG_PIN, OUTPUT);
+ pinMode(ECHO_PIN, INPUT);
+
+
+ WiFi.mode(WIFI_STA);
+
+
+ Serial.print("Transmitter MAC Address: ");
+ Serial.println(WiFi.macAddress());
+
+
+ if (esp_now_init() != ESP_OK) {
+   Serial.println("ESP-NOW initialization failed");
+   return;
+ }
+
+
+ // Register the receiving ESP32 as a peer
+ esp_now_peer_info_t peerInfo = {};
+ memcpy(peerInfo.peer_addr, receiverAddress, 6);
+ peerInfo.channel = 0;
+ peerInfo.encrypt = false;
+
+
+ if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+   Serial.println("Failed to add receiver");
+   return;
+ }
+
+
+ Serial.println("Transmitter ready!");
+}
+
+
+void loop() {
+ // Trigger ultrasonic measurement
+ digitalWrite(TRIG_PIN, LOW);
+ delayMicroseconds(2);
+
+
+ digitalWrite(TRIG_PIN, HIGH);
+ delayMicroseconds(10);
+ digitalWrite(TRIG_PIN, LOW);
+
+
+ // Read echo duration (timeout after 30 ms)
+ long duration = pulseIn(ECHO_PIN, HIGH, 30000);
+
+
+ if (duration == 0) {
+   Serial.println("No echo received");
+   delay(200);
+   return;
+ }
+
+
+ // Convert duration into distance in cm
+ float distance = duration * 0.0343 / 2.0;
+
+
+ Serial.print("Distance: ");
+ Serial.print(distance);
+ Serial.println(" cm");
+
+
+ // Send 1 if object is close, otherwise send 0
+ uint8_t ledState = (distance < threshold) ? 1 : 0;
+
+
+ esp_err_t result = esp_now_send(
+   receiverAddress,
+   &ledState,
+   sizeof(ledState)
+ );
+
+
+ if (result != ESP_OK) {
+   Serial.println("Error sending data");
+ }
+
+
+ delay(200);
+}

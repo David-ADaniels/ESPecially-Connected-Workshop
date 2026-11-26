@@ -1,0 +1,26 @@
+#include <WiFi.h>
+#define TRIG_PIN 12
+#define ECHO_PIN 13
+
+//This goes on the Receiving Circuit!!  (Circuit with the LED)
+
+void setup() {
+ // put your setup code here, to run once:
+ Serial.begin(115200);
+delay(1000);
+ WiFi.mode(WIFI_STA);
+
+
+ WiFi.begin();
+ Serial.print("MAC Address:  ");
+ Serial.println(WiFi.macAddress());
+
+
+}
+
+
+void loop() {
+ // put your main code here, to run repeatedly:
+
+
+}
