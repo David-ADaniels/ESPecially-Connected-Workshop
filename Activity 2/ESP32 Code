@@ -1,0 +1,215 @@
+
+#include <WiFi.h>
+#include <WebServer.h>
+
+const char* ssid = "IEEE-Light-Control";
+const char* password = "12345678";
+
+const int RED = 25;
+const int GREEN = 26;
+const int BLUE = 27;
+
+WebServer server(80);
+
+int mode = 0;
+int state = 0;
+
+unsigned long previousTime = 0;
+unsigned long interval = 500;
+
+void setColor(int r, int g, int b) {
+  digitalWrite(RED, r);
+  digitalWrite(GREEN, g);
+  digitalWrite(BLUE, b);
+}
+
+void handleCommand() {
+  String cmd = server.arg("cmd");
+  cmd.toLowerCase();
+
+  mode = 0;
+  state = 0;
+
+  if (cmd == "red")
+    setColor(1, 0, 0);
+
+  else if (cmd == "green")
+    setColor(0, 1, 0);
+
+  else if (cmd == "blue")
+    setColor(0, 0, 1);
+
+  else if (cmd == "yellow")
+    setColor(1, 1, 0);
+
+  else if (cmd == "purple")
+    setColor(1, 0, 1);
+
+  else if (cmd == "cyan")
+    setColor(0, 1, 1);
+
+  else if (cmd == "white")
+    setColor(1, 1, 1);
+
+  else if (cmd == "off")
+    setColor(0, 0, 0);
+
+  else if (cmd == "party") {
+    mode = 1;
+    interval = 300;
+  }
+
+  else if (cmd == "blink") {
+    mode = 2;
+    interval = 500;
+  }
+
+  else {
+    setColor(0, 0, 0);
+    server.send(400, "text/plain", "Invalid command");
+    return;
+  }
+
+  Serial.println("Command: " + cmd);
+  server.send(200, "text/plain", "Success: " + cmd);
+}
+
+void handleHome() {
+  String page = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport"
+content="width=device-width, initial-scale=1">
+<title>IEEE Light Control</title>
+<style>
+body {
+  background: #101827;
+  color: white;
+  font-family: Arial;
+  text-align: center;
+  padding: 20px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+button {
+  padding: 22px;
+  border: none;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+<h2>IEEE Verilog Workshop</h2>
+<h3>Smart Lighting Control</h3>
+<p>ESP32 Wireless Demonstration</p>
+
+<div class="grid">
+
+<button style="background:red;color:white"
+onclick="send('red')">Red</button>
+
+<button style="background:green;color:white"
+onclick="send('green')">Green</button>
+
+<button style="background:blue;color:white"
+onclick="send('blue')">Blue</button>
+
+<button style="background:yellow"
+onclick="send('yellow')">Yellow</button>
+
+<button style="background:purple;color:white"
+onclick="send('purple')">Purple</button>
+
+<button style="background:cyan"
+onclick="send('cyan')">Cyan</button>
+
+<button style="background:white"
+onclick="send('white')">White</button>
+
+<button style="background:gray;color:white"
+onclick="send('off')">OFF</button>
+
+<button style="background:orange"
+onclick="send('party')">Party Mode</button>
+
+<button style="background:pink"
+onclick="send('blink')">Blink</button>
+
+</div>
+<p id="status">Ready for command</p>
+
+<script>
+async function send(cmd) {
+  try {
+    const response = await fetch('/set?cmd=' + cmd);
+    document.getElementById('status').innerText =
+      await response.text();
+  } catch(e) {
+    document.getElementById('status').innerText =
+      'Connection error';
+  }
+}
+</script>
+</body>
+</html>
+)rawliteral";
+
+  server.send(200, "text/html", page);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(RED, OUTPUT);
+  pinMode(GREEN, OUTPUT);
+  pinMode(BLUE, OUTPUT);
+
+  setColor(0, 0, 0);
+
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ssid, password);
+
+  Serial.println("WiFi Started");
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/", handleHome);
+  server.on("/set", handleCommand);
+
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();
+
+  unsigned long currentTime = millis();
+
+  if (mode != 0 &&
+      currentTime - previousTime >= interval) {
+
+    previousTime = currentTime;
+
+    if (mode == 1) {
+      switch (state) {
+        case 0: setColor(1, 0, 0); break;
+        case 1: setColor(0, 1, 0); break;
+        case 2: setColor(0, 0, 1); break;
+        case 3: setColor(1, 1, 0); break;
+        case 4: setColor(1, 0, 1); break;
+        case 5: setColor(0, 1, 1); break;
+      }
+
+      state = (state + 1) % 6;
+    }
+
+    else if (mode == 2) {
+      setColor(state, state, state);
+      state = !state;
+    }
+  }
+}
