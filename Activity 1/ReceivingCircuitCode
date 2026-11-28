@@ -4,7 +4,7 @@
 #include <esp_now.h>
 
 
-#define LED_PIN 2  // Built-in LED on many ESP32 boards
+#define LED_PIN 14  // Built-in LED on many ESP32 boards
 
 
 void OnDataRecv(const esp_now_recv_info_t *info,
